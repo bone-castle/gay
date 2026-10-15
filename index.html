@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SL GAY — Anonymous Community Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      bg:'#08090a', panel:'#111214', panel2:'#18191c',
+      border:'#26282c', border2:'#34363c',
+      muted:'#8b8e94', primary:'#e5e7eb', accent:'#ffffff'
+    }
+  }}
+}
+</script>
+<style>
+  *{scrollbar-width:thin;scrollbar-color:#2a2a2e transparent}
+  *::-webkit-scrollbar{width:6px;height:6px}
+  *::-webkit-scrollbar-thumb{background:#2a2a2e;border-radius:3px}
+  body{background:#08090a;color:#e5e7eb;font-family:'Inter',system-ui,sans-serif}
+  .msg-anim{animation:ma .25s ease-out}
+  @keyframes ma{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .one-time-img{filter:blur(28px);transition:filter .6s;user-select:none;pointer-events:none}
+  .one-time-img.revealed{filter:blur(0);pointer-events:auto}
+  .modal-overlay{background:rgba(0,0,0,.85);backdrop-filter:blur(8px)}
+  .nav-btn{transition:all .15s}
+  .nav-btn.active{background:#1f2023;color:#fff}
+  .nav-btn:hover{background:#18191c}
+  .toast-in{animation:ti .35s ease-out,to .35s ease-out 3.3s forwards}
+  @keyframes ti{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes to{to{opacity:0;transform:translateY(20px)}}
+</style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<!-- ==================== CONFIG (YOUR CREDENTIALS) ==================== -->
+<script>
+const SUPABASE_URL = 'https://pqglgqphnmhlwqzwcktd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_eVJYSBWVC1rAGq6sdU5DfQ_iQapWq0L';
+</script>
+
+<div id="toasts" class="fixed bottom-5 right-5 z-[200] space-y-2"></div>
+
+<!-- ==================== ENTRY SCREEN ==================== -->
+<div id="entryScreen" class="h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <h1 class="text-5xl font-black tracking-tighter text-white mb-2">SL <span class="text-gray-500">GAY</span></h1>
+      <p class="text-xs text-muted tracking-widest uppercase">Anonymous · Sri Lanka · Community</p>
+    </div>
+
+    <div class="bg-panel border border-border rounded-2xl p-1">
+      <div class="grid grid-cols-3 gap-1">
+        <button onclick="showEntryTab('guest')" id="tabGuest" class="entry-tab py-3 rounded-xl text-xs font-semibold bg-panel2 text-white">Enter as Guest</button>
+        <button onclick="showEntryTab('login')" id="tabLogin" class="entry-tab py-3 rounded-xl text-xs font-semibold text-muted hover:text-white">Login</button>
+        <button onclick="showEntryTab('signup')" id="tabSignup" class="entry-tab py-3 rounded-xl text-xs font-semibold text-muted hover:text-white">Sign Up</button>
+      </div>
+    </div>
+
+    <div id="formGuest" class="bg-panel border border-border rounded-2xl p-6 mt-4 space-y-4">
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Display Name</label>
+        <input id="gName" type="text" maxlength="20" placeholder="e.g. ceylon_boy" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+      </div>
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Location <span class="text-gray-600">(optional)</span></label>
+        <select id="gLocation" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+          <option value="">— Select city —</option>
+        </select>
+      </div>
+      <div id="gSuggest" class="hidden bg-panel2 border border-border2 rounded-xl p-3 text-xs">
+        <p class="text-muted mb-2">That name is taken. Try one of these:</p>
+        <div id="gSuggestList" class="flex flex-wrap gap-2"></div>
+      </div>
+      <button onclick="guestEnter()" class="w-full py-3 bg-white text-black rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">Enter Chat Room</button>
+    </div>
+
+    <div id="formLogin" class="hidden bg-panel border border-border rounded-2xl p-6 mt-4 space-y-4">
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Username</label>
+        <input id="lName" type="text" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+      </div>
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Password</label>
+        <input id="lPass" type="password" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+      </div>
+      <button onclick="loginUser()" class="w-full py-3 bg-white text-black rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">Login</button>
+    </div>
+
+    <div id="formSignup" class="hidden bg-panel border border-border rounded-2xl p-6 mt-4 space-y-4">
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Username</label>
+        <input id="sName" type="text" maxlength="20" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+      </div>
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Password</label>
+        <input id="sPass" type="password" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+      </div>
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted">Location <span class="text-gray-600">(optional)</span></label>
+        <select id="sLocation" class="w-full mt-1.5 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm focus:outline-none focus:border-border2">
+          <option value="">— Select city —</option>
+        </select>
+      </div>
+      <div id="sSuggest" class="hidden bg-panel2 border border-border2 rounded-xl p-3 text-xs">
+        <p class="text-muted mb-2">That name is taken. Try one of these:</p>
+        <div id="sSuggestList" class="flex flex-wrap gap-2"></div>
+      </div>
+      <button onclick="signupUser()" class="w-full py-3 bg-white text-black rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="mainApp" class="hidden h-screen flex flex-col">
+
+  <header class="bg-panel border-b border-border shrink-0">
+    <div class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center gap-6">
+        <h1 class="text-lg font-black tracking-tight">SL <span class="text-gray-500">GAY</span></h1>
+        <nav class="hidden md:flex gap-1">
+          <button onclick="showView('public')" data-nav="public" class="nav-btn active px-4 py-2 rounded-lg text-xs font-medium text-muted">Public Chat</button>
+          <button onclick="showView('private')" data-nav="private" class="nav-btn px-4 py-2 rounded-lg text-xs font-medium text-muted">Private Chat</button>
+          <button onclick="showView('account')" data-nav="account" class="nav-btn px-4 py-2 rounded-lg text-xs font-medium text-muted">Account</button>
+          <button id="adminNavBtn" onclick="showView('admin')" data-nav="admin" class="nav-btn hidden px-4 py-2 rounded-lg text-xs font-medium text-muted">⚙ Admin</button>
+        </nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <p id="navUser" class="text-xs font-semibold"></p>
+          <p id="navLoc" class="text-[10px] text-muted"></p>
+        </div>
+        <div id="navAvatar" class="w-9 h-9 rounded-full bg-panel2 border border-border flex items-center justify-center text-xs font-bold"></div>
+        <button onclick="logoutUser()" class="text-[10px] px-3 py-2 rounded-lg bg-panel2 border border-border text-muted hover:text-white transition-colors">Logout</button>
+      </div>
+    </div>
+    <div class="md:hidden flex gap-1 px-2 pb-2 overflow-x-auto">
+      <button onclick="showView('public')" data-nav="public" class="nav-btn active px-3 py-2 rounded-lg text-xs font-medium text-muted whitespace-nowrap">Public</button>
+      <button onclick="showView('private')" data-nav="private" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-muted whitespace-nowrap">Private</button>
+      <button onclick="showView('account')" data-nav="account" class="nav-btn px-3 py-2 rounded-lg text-xs font-medium text-muted whitespace-nowrap">Account</button>
+      <button id="adminNavBtnM" onclick="showView('admin')" data-nav="admin" class="nav-btn hidden px-3 py-2 rounded-lg text-xs font-medium text-muted whitespace-nowrap">⚙ Admin</button>
+    </div>
+  </header>
+
+  <div id="noticeBoard" class="hidden bg-panel2 border-b border-border px-4 py-2.5">
+    <div class="flex items-center gap-2 max-w-6xl mx-auto">
+      <span class="text-xs">📢</span>
+      <p id="noticeText" class="text-xs text-gray-300 flex-1"></p>
+    </div>
+  </div>
+
+  <main class="flex-1 overflow-hidden">
+
+    <!-- PUBLIC -->
+    <div id="viewPublic" class="view h-full flex flex-col">
+      <div id="publicMessages" class="flex-1 overflow-y-auto px-4 py-6">
+        <div class="max-w-3xl mx-auto space-y-3">
+          <div class="text-center py-8"><p class="text-xs text-muted">Loading messages...</p></div>
+        </div>
+      </div>
+      <div class="border-t border-border bg-panel shrink-0">
+        <div class="max-w-3xl mx-auto p-3">
+          <div id="pubPreview" class="hidden mb-2 p-2 bg-panel2 rounded-xl flex items-center gap-2">
+            <img id="pubPreviewImg" class="w-12 h-12 rounded-lg object-cover">
+            <div class="flex-1 text-xs text-muted truncate" id="pubPreviewName"></div>
+            <button onclick="cancelImage('pub')" class="text-muted hover:text-white text-xs">✕</button>
+          </div>
+          <div class="flex items-end gap-2">
+            <label class="cursor-pointer p-3 bg-panel2 border border-border rounded-xl hover:border-border2 transition-colors">
+              <input type="file" accept="image/*" class="hidden" onchange="pickImage(event,'pub')">
+              <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </label>
+            <label class="cursor-pointer p-3 bg-panel2 border border-border rounded-xl hover:border-border2 transition-colors" title="One-time view image">
+              <input type="file" accept="image/*" class="hidden" onchange="pickImage(event,'pub',true)">
+              <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </label>
+            <textarea id="pubInput" rows="1" placeholder="Message the room..." class="flex-1 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm resize-none max-h-32 focus:outline-none focus:border-border2" oninput="autoH(this)" onkeydown="handleSend(event,'pub')"></textarea>
+            <button onclick="sendPublic()" class="p-3 bg-white text-black rounded-xl hover:bg-gray-200 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIVATE LIST -->
+    <div id="viewPrivate" class="view hidden h-full overflow-y-auto">
+      <div class="max-w-3xl mx-auto p-4">
+        <h2 class="text-lg font-bold mb-4">Private Chats</h2>
+        <div id="privateChatsList" class="space-y-2">
+          <p class="text-sm text-muted">No private chats yet. Click a username in Public Chat to start.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIVATE DETAIL -->
+    <div id="viewPrivateChat" class="view hidden h-full flex-col">
+      <div class="border-b border-border bg-panel px-4 py-3 flex items-center gap-3 shrink-0">
+        <button onclick="showView('private')" class="p-2 rounded-lg hover:bg-panel2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="w-9 h-9 rounded-full bg-panel2 border border-border flex items-center justify-center text-xs font-bold" id="pcAvatar"></div>
+        <div class="flex-1">
+          <p id="pcName" class="text-sm font-semibold"></p>
+          <p id="pcStatus" class="text-[10px] text-muted">—</p>
+        </div>
+      </div>
+      <div id="privateMessages" class="flex-1 overflow-y-auto px-4 py-6">
+        <div class="max-w-3xl mx-auto space-y-3"></div>
+      </div>
+      <div class="border-t border-border bg-panel shrink-0">
+        <div class="max-w-3xl mx-auto p-3">
+          <div id="privPreview" class="hidden mb-2 p-2 bg-panel2 rounded-xl flex items-center gap-2">
+            <img id="privPreviewImg" class="w-12 h-12 rounded-lg object-cover">
+            <div class="flex-1 text-xs text-muted truncate" id="privPreviewName"></div>
+            <button onclick="cancelImage('priv')" class="text-muted hover:text-white text-xs">✕</button>
+          </div>
+          <div class="flex items-end gap-2">
+            <label class="cursor-pointer p-3 bg-panel2 border border-border rounded-xl hover:border-border2">
+              <input type="file" accept="image/*" class="hidden" onchange="pickImage(event,'priv')">
+              <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </label>
+            <label class="cursor-pointer p-3 bg-panel2 border border-border rounded-xl hover:border-border2" title="One-time view">
+              <input type="file" accept="image/*" class="hidden" onchange="pickImage(event,'priv',true)">
+              <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </label>
+            <textarea id="privInput" rows="1" placeholder="Type a message..." class="flex-1 px-4 py-3 bg-panel2 border border-border rounded-xl text-sm resize-none max-h-32 focus:outline-none focus:border-border2" oninput="autoH(this)" onkeydown="handleSend(event,'priv')"></textarea>
+            <button onclick="sendPrivate()" class="p-3 bg-white text-black rounded-xl hover:bg-gray-200">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT -->
+    <div id="viewAccount" class="view hidden h-full overflow-y-auto">
+      <div class="max-w-md mx-auto p-6 space-y-4">
+        <h2 class="text-lg font-bold">Account</h2>
+        <div class="bg-panel border border-border rounded-2xl p-6 space-y-4">
+          <div>
+            <label class="text-[10px] uppercase tracking-widest text-muted">Username</label>
+            <p id="accUsername" class="text-sm mt-1 font-mono bg-panel2 px-3 py-2 rounded-lg"></p>
+          </div>
+          <div id="accPassBlock">
+            <label class="text-[10px] uppercase tracking-widest text-muted">Password</label>
+            <p id="accPassword" class="text-sm mt-1 font-mono bg-panel2 px-3 py-2 rounded-lg"></p>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-widest text-muted">Location</label>
+            <p id="accLocation" class="text-sm mt-1 bg-panel2 px-3 py-2 rounded-lg text-muted"></p>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-widest text-muted">Type</label>
+            <p id="accType" class="text-xs mt-1"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="viewAdmin" class="view hidden h-full overflow-y-auto">
+      <div class="max-w-5xl mx-auto p-4">
+        <h2 class="text-lg font-bold mb-4">⚙ Admin Control Panel</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+          <button onclick="adminTab('notice')" data-atab="notice" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">📢 Notice</button>
+          <button onclick="adminTab('users')" data-atab="users" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">👥 Users</button>
+          <button onclick="adminTab('public')" data-atab="public" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">💬 Public</button>
+          <button onclick="adminTab('private')" data-atab="private" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">🔒 Private</button>
+          <button onclick="adminTab('onetime')" data-atab="onetime" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">⏱ One-time</button>
+          <button onclick="adminTab('bans')" data-atab="bans" class="admin-tab px-3 py-2.5 rounded-xl bg-panel2 border border-border text-xs font-semibold">🚫 Bans</button>
+        </div>
+        <div id="adminContent"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div id="imgModal" class="hidden fixed inset-0 z-[150] modal-overlay items-center justify-center p-4" onclick="closeImgModal(event)">
+  <div class="max-w-2xl w-full" onclick="event.stopPropagation()">
+    <img id="imgModalImg" class="w-full rounded-2xl border border-border">
+    <div class="flex justify-center gap-2 mt-3">
+      <button id="imgModalDownload" onclick="downloadImg()" class="px-4 py-2 rounded-xl bg-panel2 border border-border text-xs">⬇ Download</button>
+      <button onclick="closeImgModal()" class="px-4 py-2 rounded-xl bg-panel2 border border-border text-xs">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SL GAY — Client Logic
+   ============================================================ */
+
+const SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const SL_CITIES = ["Colombo","Dehiwala","Moratuwa","Sri Jayawardenepura Kotte","Negombo","Gampaha","Kalutara","Panadura","Kandy","Galle","Matara","Jaffna","Trincomalee","Batticaloa","Anuradhapura","Kurunegala","Ratnapura","Badulla","Nuwara Eliya","Kegalle","Puttalam","Vavuniya","Mannar","Ampara","Polonnaruwa","Hambantota","Monaragala","Mullaitivu","Kilinochchi","Matale","Katunayake","Kelaniya","Beruwala","Chilaw","Dambulla","Hikkaduwa","Weligama","Mirissa","Ella","Sigiriya"];
+
+const State = {
+  user: null,
+  view: 'public',
+  privChannel: null,
+  pendingImage: { pub: null, priv: null },
+  pendingOneTime: { pub: false, priv: false },
+  currentChat: null,
+  heartbeatTimer: null,
+  cleanupTimer: null,
+};
+
+function esc(t){ const d=document.createElement('div'); d.textContent=t||''; return d.innerHTML; }
+function timeAgo(d){
+  const s=Math.floor((Date.now()-new Date(d))/1000);
+  if(s<10) return 'just now';
+  if(s<60) return s+'s ago';
+  if(s<3600) return Math.floor(s/60)+'m ago';
+  if(s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+function fmtTime(d){
+  const dt = new Date(d);
+  return dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + ' · ' + dt.toLocaleDateString([], {month:'short',day:'numeric'});
+}
+function toast(msg, type='info'){
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  const colors={info:'border-border bg-panel2 text-gray-300',success:'border-green-500/30 bg-green-500/10 text-green-400',error:'border-red-500/30 bg-red-500/10 text-red-400'};
+  el.className=`toast-in px-4 py-2.5 rounded-xl border ${colors[type]} text-xs font-medium`;
+  el.textContent=msg; c.appendChild(el);
+  setTimeout(()=>el.remove(),3700);
+}
+function autoH(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,128)+'px'; }
+function handleSend(e,kind){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault(); kind==='pub'?sendPublic():sendPrivate();} }
+function initials(n){ return (n||'?').slice(0,2).toUpperCase(); }
+
+async function compressImage(file, maxDim=800, quality=0.6){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let {width:w,height:h}=img;
+        if(w>maxDim||h>maxDim){
+          if(w>h){h=Math.round(h*maxDim/w); w=maxDim;} else {w=Math.round(w*maxDim/h); h=maxDim;}
+        }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',quality));
+      };
+      img.onerror=reject; img.src=e.target.result;
+    };
+    r.onerror=reject; r.readAsDataURL(file);
+  });
+}
+
+['gLocation','sLocation'].forEach(id=>{
+  const s=document.getElementById(id);
+  SL_CITIES.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; s.appendChild(o); });
+});
+
+function showEntryTab(t){
+  ['guest','login','signup'].forEach(x=>{
+    document.getElementById('form'+x.charAt(0).toUpperCase()+x.slice(1)).classList.add('hidden');
+    const b=document.getElementById('tab'+x.charAt(0).toUpperCase()+x.slice(1));
+    b.className='entry-tab py-3 rounded-xl text-xs font-semibold '+(x===t?'bg-panel2 text-white':'text-muted hover:text-white');
+  });
+  document.getElementById('form'+t.charAt(0).toUpperCase()+t.slice(1)).classList.remove('hidden');
+}
+
+async function checkNameAvailable(name){
+  const { data:u } = await SB.from('users').select('username').eq('username',name).maybeSingle();
+  if(u) return { available:false, reason:'registered' };
+  const cutoff=new Date(Date.now()-90000).toISOString();
+  const { data:p } = await SB.from('presence').select('username').eq('username',name).gte('last_seen',cutoff).maybeSingle();
+  if(p) return { available:false, reason:'online' };
+  return { available:true };
+}
+
+async function generateSuggestions(base){
+  const suffix=['_lk','92','_sl','x','anon','ceylon','_gay','2024','col','kandy'];
+  const out=[];
+  let attempts=0;
+  while(out.length<3 && attempts<25){
+    attempts++;
+    const s = base + suffix[Math.floor(Math.random()*suffix.length)] + Math.floor(Math.random()*90+10);
+    const { available } = await checkNameAvailable(s);
+    if(available && !out.includes(s)) out.push(s);
+  }
+  while(out.length<3){ out.push(base+(Date.now().toString().slice(-4)+out.length)); }
+  return out;
+}
+
+async function guestEnter(){
+  const name = document.getElementById('gName').value.trim().replace(/\s+/g,'_');
+  const loc  = document.getElementById('gLocation').value || null;
+  if(!name || name.length<3){ toast('Enter a name (min 3 chars)','error'); return; }
+
+  const { data:ban } = await SB.from('bans').select('username').eq('username',name).maybeSingle();
+  if(ban){ toast('This name is banned.','error'); return; }
+
+  const { available } = await checkNameAvailable(name);
+  if(!available){
+    const s = await generateSuggestions(name);
+    const box = document.getElementById('gSuggest');
+    const list = document.getElementById('gSuggestList');
+    list.innerHTML = s.map(n=>`<button onclick="document.getElementById('gName').value='${n}';document.getElementById('gSuggest').classList.add('hidden')" class="px-3 py-1.5 bg-panel border border-border rounded-lg text-xs hover:border-border2">${n}</button>`).join('');
+    box.classList.remove('hidden');
+    toast('Name is taken. Pick a suggestion.','error');
+    return;
+  }
+
+  const { error } = await SB.from('presence').upsert({ username:name, is_guest:true, location:loc, last_seen:new Date().toISOString(), kicked:false }, { onConflict:'username' });
+  if(error){ toast('Enter failed: '+error.message,'error'); return; }
+
+  State.user = { username:name, isGuest:true, isAdmin:false, location:loc };
+  enterApp();
+}
+
+async function signupUser(){
+  const name = document.getElementById('sName').value.trim().replace(/\s+/g,'_');
+  const pass = document.getElementById('sPass').value;
+  const loc  = document.getElementById('sLocation').value || null;
+  if(!name || name.length<3){ toast('Username min 3 chars','error'); return; }
+  if(!pass || pass.length<3){ toast('Password min 3 chars','error'); return; }
+
+  const { available } = await checkNameAvailable(name);
+  if(!available){
+    const s = await generateSuggestions(name);
+    const list = document.getElementById('sSuggestList');
+    list.innerHTML = s.map(n=>`<button onclick="document.getElementById('sName').value='${n}';document.getElementById('sSuggest').classList.add('hidden')" class="px-3 py-1.5 bg-panel border border-border rounded-lg text-xs hover:border-border2">${n}</button>`).join('');
+    document.getElementById('sSuggest').classList.remove('hidden');
+    toast('Name is taken.','error');
+    return;
+  }
+  const { error } = await SB.from('users').insert({ username:name, password:pass, location:loc });
+  if(error){ toast('Signup failed: '+error.message,'error'); return; }
+  await SB.from('presence').upsert({ username:name, is_guest:false, location:loc, last_seen:new Date().toISOString(), kicked:false },{onConflict:'username'});
+  State.user = { username:name, isGuest:false, isAdmin:false, location:loc };
+  toast('Account created!','success');
+  enterApp();
+}
+
+async function loginUser(){
+  const name = document.getElementById('lName').value.trim();
+  const pass = document.getElementById('lPass').value;
+  if(!name||!pass){ toast('Enter credentials','error'); return; }
+
+  const { data:ban } = await SB.from('bans').select('username').eq('username',name).maybeSingle();
+  if(ban){ toast('This account is banned.','error'); return; }
+
+  const { data:u, error } = await SB.from('users').select('*').eq('username',name).maybeSingle();
+  if(error||!u){ toast('Account not found','error'); return; }
+  if(u.is_banned){ toast('Account banned: '+(u.ban_reason||''),'error'); return; }
+  if(u.password!==pass){ toast('Wrong password','error'); return; }
+
+  await SB.from('presence').delete().eq('username',name);
+  await SB.from('presence').upsert({ username:name, is_guest:false, location:u.location, last_seen:new Date().toISOString(), kicked:false },{onConflict:'username'});
+  await SB.from('users').update({ last_seen:new Date().toISOString() }).eq('id',u.id);
+
+  State.user = { username:u.username, isGuest:false, isAdmin:!!u.is_admin, location:u.location };
+  enterApp();
+}
+
+function enterApp(){
+  document.getElementById('entryScreen').classList.add('hidden');
+  document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('navUser').textContent = State.user.username + (State.user.isGuest?' (guest)':'');
+  document.getElementById('navLoc').textContent = State.user.location || '';
+  document.getElementById('navAvatar').textContent = initials(State.user.username);
+  if(State.user.isAdmin){
+    document.getElementById('adminNavBtn').classList.remove('hidden');
+    document.getElementById('adminNavBtnM').classList.remove('hidden');
+  }
+  document.getElementById('accUsername').textContent = State.user.username;
+  document.getElementById('accPassword').textContent = State.user.isGuest?'— (guest)':'••••••';
+  document.getElementById('accLocation').textContent = State.user.location || 'Not set';
+  document.getElementById('accType').textContent = State.user.isAdmin?'Administrator':(State.user.isGuest?'Anonymous Guest':'Registered User');
+
+  if(!State.user.isGuest){
+    SB.from('users').select('password').eq('username',State.user.username).maybeSingle().then(({data})=>{
+      if(data) document.getElementById('accPassword').textContent = data.password;
+    });
+  }
+
+  loadNotice();
+  loadPublicMessages();
+  loadPrivateChats();
+  startHeartbeat();
+  startCleanupLoop();
+  subscribeRealtime();
+  showView('public');
+}
+
+function startHeartbeat(){
+  const beat = async () => {
+    if(!State.user) return;
+    const { data:p } = await SB.from('presence').select('kicked').eq('username',State.user.username).maybeSingle();
+    if(p?.kicked){ toast('You were kicked by admin','error'); logoutUser(); return; }
+    await SB.from('presence').update({ last_seen:new Date().toISOString() }).eq('username',State.user.username);
+    if(!State.user.isGuest){
+      await SB.from('users').update({ last_seen:new Date().toISOString() }).eq('username',State.user.username);
+    }
+  };
+  beat();
+  State.heartbeatTimer = setInterval(beat, 20000);
+}
+
+function startCleanupLoop(){
+  const run = async () => {
+    const now = new Date().toISOString();
+    try {
+      await SB.from('public_messages').delete().lt('expires_at', now);
+      await SB.from('private_messages').delete().lt('expires_at', now);
+
+      const { data:pub } = await SB.from('public_messages').select('id,target_viewers,viewed_by,is_one_time').eq('is_one_time',true);
+      (pub||[]).forEach(async m=>{
+        const tv = new Set(m.target_viewers||[]);
+        const vb = new Set(m.viewed_by||[]);
+        let all=true; tv.forEach(u=>{ if(!vb.has(u)) all=false; });
+        if(all && tv.size>0) await SB.from('public_messages').delete().eq('id',m.id);
+      });
+      const { data:priv } = await SB.from('private_messages').select('id,target_viewers,viewed_by,is_one_time').eq('is_one_time',true);
+      (priv||[]).forEach(async m=>{
+        const tv = new Set(m.target_viewers||[]);
+        const vb = new Set(m.viewed_by||[]);
+        let all=true; tv.forEach(u=>{ if(!vb.has(u)) all=false; });
+        if(all && tv.size>0) await SB.from('private_messages').delete().eq('id',m.id);
+      });
+    } catch(e){ console.warn('cleanup',e); }
+  };
+  run();
+  State.cleanupTimer = setInterval(run, 60000);
+}
+
+async function logoutUser(){
+  if(State.user){
+    await SB.from('presence').delete().eq('username',State.user.username);
+  }
+  clearInterval(State.heartbeatTimer);
+  clearInterval(State.cleanupTimer);
+  SB.removeAllChannels();
+  location.reload();
+}
+
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.add('hidden'));
+  const map = { public:'viewPublic', private:'viewPrivate', 'private-chat':'viewPrivateChat', account:'viewAccount', admin:'viewAdmin' };
+  const el = document.getElementById(map[v]);
+  if(el){
+    el.classList.remove('hidden');
+    if(v==='private-chat') el.classList.add('flex','flex-col'); else el.classList.add('flex');
+  }
+  document.querySelectorAll('[data-nav]').forEach(b=>{
+    if(b.dataset.nav===v){ b.classList.add('active'); b.classList.remove('text-muted'); }
+    else { b.classList.remove('active'); b.classList.add('text-muted'); }
+  });
+  State.view = v;
+  if(v==='private') loadPrivateChats();
+  if(v==='admin') renderAdmin();
+}
+
+async function loadNotice(){
+  const { data } = await SB.from('notice_board').select('*').eq('id',1).maybeSingle();
+  if(data && data.is_visible && data.content){
+    document.getElementById('noticeText').textContent = data.content;
+    document.getElementById('noticeBoard').classList.remove('hidden');
+  } else {
+    document.getElementById('noticeBoard').classList.add('hidden');
+  }
+}
+
+/* ============================================================
+   PUBLIC CHAT
+   ============================================================ */
+async function loadPublicMessages(){
+  const { data, error } = await SB.from('public_messages').select('*').order('created_at',{ascending:true}).limit(3000);
+  if(error){ console.error(error); return; }
+  const box = document.querySelector('#publicMessages .max-w-3xl');
+  box.innerHTML = '';
+  (data||[]).forEach(m=> box.appendChild(renderPublicMsg(m)));
+  scrollPublic();
+}
+
+function renderPublicMsg(m){
+  const div = document.createElement('div');
+  div.className = 'msg-anim';
+  div.dataset.id = m.id;
+
+  if(m.msg_type==='system'){
+    div.innerHTML = `<div class="text-center text-[10px] text-muted py-1">${esc(m.content)}</div>`;
+    return div;
+  }
+
+  const isMine = m.sender===State.user.username;
+  const canDelete = isMine || State.user.isAdmin;
+
+  if(m.msg_type==='image'){
+    const isOneTime = m.is_one_time;
+    const alreadyViewed = (m.viewed_by||[]).includes(State.user.username);
+    const canSee = isMine || State.user.isAdmin || (!isOneTime) || (!alreadyViewed && (m.target_viewers||[]).includes(State.user.username));
+
+    div.innerHTML = `
+      <div class="flex items-start gap-2 ${isMine?'flex-row-reverse':''}">
+        <div class="w-8 h-8 rounded-full bg-panel2 border border-border flex items-center justify-center text-[10px] font-bold shrink-0">${initials(m.sender)}</div>
+        <div class="max-w-[70%]">
+          <div class="flex items-center gap-2 mb-1 ${isMine?'justify-end':''}">
+            <button onclick="openPrivateWith('${esc(m.sender)}')" class="text-[10px] font-semibold hover:underline text-gray-300">${esc(m.sender)}</button>
+            ${m.location?`<span class="text-[9px] text-muted">📍${esc(m.location)}</span>`:''}
+            ${isOneTime?`<span class="text-[9px] px-1.5 py-0.5 rounded bg-panel2 border border-border text-muted">⏱ one-time</span>`:''}
+          </div>
+          <div class="relative ${isMine?'text-right':''}">
+            ${canSee
+              ? `<img src="${m.image_data}" class="rounded-xl max-w-full border border-border cursor-pointer ${isOneTime?'one-time-img':''}" onclick="handleImageView(event,${m.id},'pub',${isOneTime},${alreadyViewed})">`
+              : `<div class="px-4 py-3 rounded-xl bg-panel2 border border-border text-xs text-muted italic">🔒 Image already viewed</div>`}
+          </div>
+          <div class="text-[9px] text-muted mt-1 ${isMine?'text-right':''}">
+            ${fmtTime(m.created_at)}
+            ${canDelete?`<button onclick="deleteMsg('pub',${m.id})" class="ml-2 text-red-400/70 hover:text-red-400">delete</button>`:''}
+          </div>
+        </div>
+      </div>`;
+    return div;
+  }
+
+  div.innerHTML = `
+    <div class="flex items-start gap-2 ${isMine?'flex-row-reverse':''}">
+      <div class="w-8 h-8 rounded-full bg-panel2 border border-border flex items-center justify-center text-[10px] font-bold shrink-0">${initials(m.sender)}</div>
+      <div class="max-w-[70%]">
+        <div class="flex items-center gap-2 mb-1 ${isMine?'justify-end':''}">
+          <button onclick="openPrivateWith('${esc(m.sender)}')" class="text-[10px] font-semibold hover:underline text-gray-300">${esc(m.sender)}</button>
+          ${m.location?`<span class="text-[9px] text-muted">📍${esc(m.location)}</span>`:''}
+        </div>
+        <div class="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMine?'bg-white text-black':'bg-panel2 text-gray-200 border border-border'}">
+          ${esc(m.content)}
+        </div>
+        <div class="text-[9px] text-muted mt-1 ${isMine?'text-right':''}">
+          ${fmtTime(m.created_at)}
+          ${canDelete?`<button onclick="deleteMsg('pub',${m.id})" class="ml-2 text-red-400/70 hover:text-red-400">delete</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  return div;
+}
+
+function scrollPublic(){
+  const el = document.getElementById('publicMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendPublic(){
+  const input = document.getElementById('pubInput');
+  const text = input.value.trim();
+  if(State.pendingImage.pub){ await submitImage('pub'); return; }
+  if(!text) return;
+  input.value=''; input.style.height='auto';
+
+  const { error } = await SB.from('public_messages').insert({
+    sender:State.user.username, is_guest:State.user.isGuest, location:State.user.location,
+    content:text, msg_type:'text'
+  });
+  if(error) toast('Send failed: '+error.message,'error');
+}
+
+async function pickImage(evt, kind, oneTime=false){
+  const file = evt.target.files[0];
+  if(!file) return;
+  toast('Compressing image...','info');
+  const compressed = await compressImage(file, oneTime?900:800, oneTime?0.75:0.6);
+  State.pendingImage[kind] = compressed;
+  State.pendingOneTime[kind] = oneTime;
+  const prev = document.getElementById(kind==='pub'?'pubPreview':'privPreview');
+  const img  = document.getElementById(kind==='pub'?'pubPreviewImg':'privPreviewImg');
+  const nm   = document.getElementById(kind==='pub'?'pubPreviewName':'privPreviewName');
+  img.src = compressed;
+  nm.textContent = (oneTime?'⏱ One-time image · ':'📷 Image · ') + Math.round(compressed.length/1024) + ' KB';
+  prev.classList.remove('hidden');
+  evt.target.value='';
+}
+function cancelImage(kind){
+  State.pendingImage[kind]=null; State.pendingOneTime[kind]=false;
+  document.getElementById(kind==='pub'?'pubPreview':'privPreview').classList.add('hidden');
+}
+async function submitImage(kind){
+  const data = State.pendingImage[kind];
+  const isOneTime = State.pendingOneTime[kind];
+  cancelImage(kind);
+  if(!data) return;
+
+  let targets = [];
+  if(isOneTime){
+    const cutoff=new Date(Date.now()-90000).toISOString();
+    const { data:ps } = await SB.from('presence').select('username').gte('last_seen',cutoff);
+    targets = (ps||[]).map(p=>p.username);
+  }
+
+  const expires_at = isOneTime ? new Date(Date.now()+24*3600*1000).toISOString() : null;
+
+  if(kind==='pub'){
+    const { error } = await SB.from('public_messages').insert({
+      sender:State.user.username, is_guest:State.user.isGuest, location:State.user.location,
+      msg_type:'image', image_data:data, is_one_time:isOneTime,
+      target_viewers:targets, viewed_by:[], expires_at
+    });
+    if(error){ toast('Send failed: '+error.message,'error'); return; }
+  } else {
+    const { error } = await SB.from('private_messages').insert({
+      chat_id:State.currentChat.id, sender:State.user.username,
+      msg_type:'image', image_data:data, is_one_time:isOneTime,
+      target_viewers:targets, viewed_by:[], expires_at
+    });
+    if(error){ toast('Send failed: '+error.message,'error'); return; }
+  }
+  toast('Image sent','success');
+}
+
+let imgModalURL = null;
+async function handleImageView(evt, id, kind, isOneTime, alreadyViewed){
+  evt.stopPropagation();
+  const src = evt.target.src;
+  imgModalURL = src;
+
+  // Reveal one-time in place
+  if(isOneTime && !alreadyViewed){
+    evt.target.classList.add('revealed');
+    evt.target.style.filter = 'none';
+    evt.target.style.pointerEvents = 'auto';
+  }
+
+  document.getElementById('imgModalImg').src = src;
+  document.getElementById('imgModal').classList.remove('hidden');
+  document.getElementById('imgModal').classList.add('flex');
+
+  if(isOneTime && !alreadyViewed){
+    const table = kind==='pub'?'public_messages':'private_messages';
+    const { data:m } = await SB.from(table).select('viewed_by').eq('id',id).maybeSingle();
+    const vb = new Set(m?.viewed_by||[]); vb.add(State.user.username);
+    await SB.from(table).update({ viewed_by:Array.from(vb) }).eq('id',id);
+  }
+}
+function closeImgModal(evt){
+  if(evt && evt.target.id !== 'imgModal') return;
+  document.getElementById('imgModal').classList.add('hidden');
+  document.getElementById('imgModal').classList.remove('flex');
+  imgModalURL = null;
+}
+function downloadImg(){
+  if(!imgModalURL) return;
+  const a=document.createElement('a'); a.href=imgModalURL; a.download='slgay_'+Date.now()+'.jpg'; a.click();
+}
+
+async function deleteMsg(kind, id){
+  if(!confirm('Delete this message?')) return;
+  const table = kind==='pub'?'public_messages':'private_messages';
+  const { error } = await SB.from(table).delete().eq('id',id);
+  if(error){ toast('Delete failed: '+error.message,'error'); return; }
+  toast('Deleted','success');
+}
+
+/* ============================================================
+   PRIVATE CHAT
+   ============================================================ */
+async function openPrivateWith(otherUser){
+  if(otherUser===State.user.username){ toast('That is you 🙂'); return; }
+  const [a,b] = [State.user.username, otherUser].sort();
+  let { data:chat } = await SB.from('private_chats').select('*').eq('user_a',a).eq('user_b',b).maybeSingle();
+  if(!chat){
+    const r = await SB.from('private_chats').insert({ user_a:a, user_b:b }).select().single();
+    if(r.error){ toast('Could not open chat: '+r.error.message,'error'); return; }
+    chat = r.data;
+  }
+  State.currentChat = { id:chat.id, otherUser };
+  document.getElementById('pcName').textContent = otherUser;
+  document.getElementById('pcAvatar').textContent = initials(otherUser);
+  await updatePrivateStatus();
+  await loadPrivateMessages();
+  showView('private-chat');
+  subscribePrivateChat(chat.id);
+}
+
+async function updatePrivateStatus(){
+  if(!State.currentChat) return;
+  const other = State.currentChat.otherUser;
+  const { data:p } = await SB.from('presence').select('last_seen').eq('username',other).maybeSingle();
+  const { data:u } = await SB.from('users').select('last_seen').eq('username',other).maybeSingle();
+  const last = p?.last_seen || u?.last_seen;
+  if(!last){ document.getElementById('pcStatus').textContent='Last seen: unknown'; return; }
+  const diff = (Date.now() - new Date(last))/1000;
+  if(diff<90) document.getElementById('pcStatus').innerHTML = '<span class="text-green-400">● Online</span>';
+  else document.getElementById('pcStatus').textContent = 'Last seen ' + timeAgo(last);
+}
+
+async function loadPrivateMessages(){
+  if(!State.currentChat) return;
+  const { data } = await SB.from('private_messages').select('*').eq('chat_id',State.currentChat.id).order('created_at',{ascending:true}).limit(300);
+  const box = document.querySelector('#privateMessages .max-w-3xl');
+  box.innerHTML='';
+  (data||[]).forEach(m=> box.appendChild(renderPrivateMsg(m)));
+  const sc=document.getElementById('privateMessages'); sc.scrollTop=sc.scrollHeight;
+}
+
+function renderPrivateMsg(m){
+  const div = document.createElement('div');
+  div.className='msg-anim';
+  div.dataset.id=m.id;
+  const isMine = m.sender===State.user.username;
+  const canDelete = isMine || State.user.isAdmin;
+
+  if(m.msg_type==='image'){
+    const isOneTime=m.is_one_time;
+    const alreadyViewed=(m.viewed_by||[]).includes(State.user.username);
+    const canSee = isMine || State.user.isAdmin || !isOneTime || (!alreadyViewed && (m.target_viewers||[]).includes(State.user.username));
+    div.innerHTML = `
+      <div class="flex ${isMine?'justify-end':'justify-start'}">
+        <div class="max-w-[70%]">
+          ${canSee
+            ? `<img src="${m.image_data}" class="rounded-xl border border-border cursor-pointer max-w-full ${isOneTime?'one-time-img':''}" onclick="handleImageView(event,${m.id},'priv',${isOneTime},${alreadyViewed})">`
+            : `<div class="px-4 py-3 rounded-xl bg-panel2 border border-border text-xs text-muted italic">🔒 Image already viewed</div>`}
+          <div class="text-[9px] text-muted mt-1 ${isMine?'text-right':''}">
+            ${fmtTime(m.created_at)}
+            ${canDelete?`<button onclick="deleteMsg('priv',${m.id})" class="ml-2 text-red-400/70 hover:text-red-400">delete</button>`:''}
+          </div>
+        </div>
+      </div>`;
+    return div;
+  }
+
+  div.innerHTML = `
+    <div class="flex ${isMine?'justify-end':'justify-start'}">
+      <div class="max-w-[70%]">
+        <div class="px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${isMine?'bg-white text-black':'bg-panel2 text-gray-200 border border-border'}">
+          ${esc(m.content)}
+        </div>
+        <div class="text-[9px] text-muted mt-1 ${isMine?'text-right':''}">
+          ${fmtTime(m.created_at)}
+          ${canDelete?`<button onclick="deleteMsg('priv',${m.id})" class="ml-2 text-red-400/70 hover:text-red-400">delete</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  return div;
+}
+
+async function sendPrivate(){
+  if(!State.currentChat) return;
+  const input=document.getElementById('privInput');
+  const text=input.value.trim();
+  if(State.pendingImage.priv){ await submitImage('priv'); return; }
+  if(!text) return;
+  input.value=''; input.style.height='auto';
+  const { error } = await SB.from('private_messages').insert({
+    chat_id:State.currentChat.id, sender:State.user.username, content:text, msg_type:'text'
+  });
+  if(error) toast('Send failed: '+error.message,'error');
+}
+
+async function loadPrivateChats(){
+  const me = State.user.username;
+  const { data:chats } = await SB.from('private_chats')
+    .select('*')
+    .or(`user_a.eq.${me},user_b.eq.${me}`)
+    .order('last_message_at',{ascending:false});
+  const box = document.getElementById('privateChatsList');
+  if(!chats || !chats.length){ box.innerHTML='<p class="text-sm text-muted">No private chats yet. Click a username in Public Chat to start.</p>'; return; }
+  box.innerHTML='';
+  for(const c of chats){
+    const other = c.user_a===me ? c.user_b : c.user_a;
+    const { data:p } = await SB.from('presence').select('last_seen').eq('username',other).maybeSingle();
+    const online = p && (Date.now()-new Date(p.last_seen))/1000 < 90;
+    const el = document.createElement('button');
+    el.className='w-full text-left bg-panel border border-border hover:border-border2 rounded-xl p-4 flex items-center gap-3';
+    el.onclick = ()=> openPrivateWith(other);
+    el.innerHTML = `
+      <div class="w-10 h-10 rounded-full bg-panel2 border border-border flex items-center justify-center text-xs font-bold">${initials(other)}</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold">${esc(other)}</p>
+        <p class="text-[10px] ${online?'text-green-400':'text-muted'}">${online?'● Online':'Last seen '+timeAgo(p?.last_seen||c.last_message_at)}</p>
+      </div>
+      <div class="text-[10px] text-muted">${timeAgo(c.last_message_at)}</div>`;
+    box.appendChild(el);
+  }
+}
+
+/* ============================================================
+   REALTIME
+   ============================================================ */
+function subscribeRealtime(){
+  SB.channel('notice-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'notice_board'},()=>loadNotice())
+    .subscribe();
+
+  SB.channel('pub-ch')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'public_messages'},payload=>{
+      if(State.view!=='public') return;
+      const box = document.querySelector('#publicMessages .max-w-3xl');
+      if(box.querySelector('[data-id="'+payload.new.id+'"]')) return;
+      box.appendChild(renderPublicMsg(payload.new));
+      scrollPublic();
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'public_messages'},()=>loadPublicMessages())
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'public_messages'},payload=>{
+      document.querySelectorAll(`[data-id="${payload.old.id}"]`).forEach(e=>e.remove());
+    })
+    .subscribe();
+
+  SB.channel('chatlist-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'private_chats'},()=>{
+      if(State.view==='private') loadPrivateChats();
+    })
+    .subscribe();
+}
+
+function subscribePrivateChat(chatId){
+  if(State.privChannel) SB.removeChannel(State.privChannel);
+  State.privChannel = SB.channel('priv-'+chatId)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'private_messages',filter:`chat_id=eq.${chatId}`},payload=>{
+      const box = document.querySelector('#privateMessages .max-w-3xl');
+      if(box.querySelector('[data-id="'+payload.new.id+'"]')) return;
+      box.appendChild(renderPrivateMsg(payload.new));
+      const sc=document.getElementById('privateMessages'); sc.scrollTop=sc.scrollHeight;
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'private_messages',filter:`chat_id=eq.${chatId}`},()=>loadPrivateMessages())
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'private_messages'},payload=>{
+      document.querySelectorAll(`[data-id="${payload.old.id}"]`).forEach(e=>e.remove());
+    })
+    .subscribe();
+}
+
+/* ============================================================
+   ADMIN PANEL
+   ============================================================ */
+let adminCurrentTab = 'notice';
+function adminTab(t){
+  adminCurrentTab=t;
+  document.querySelectorAll('[data-atab]').forEach(b=>{
+    if(b.dataset.atab===t){ b.classList.add('bg-white','text-black'); b.classList.remove('bg-panel2'); }
+    else { b.classList.remove('bg-white','text-black'); b.classList.add('bg-panel2'); }
+  });
+  renderAdmin();
+}
+async function renderAdmin(){
+  const box = document.getElementById('adminContent');
+  box.innerHTML='<p class="text-xs text-muted">Loading...</p>';
+  if(adminCurrentTab==='notice') return adminNotice(box);
+  if(adminCurrentTab==='users') return adminUsers(box);
+  if(adminCurrentTab==='public') return adminPublic(box);
+  if(adminCurrentTab==='private') return adminPrivate(box);
+  if(adminCurrentTab==='onetime') return adminOneTime(box);
+  if(adminCurrentTab==='bans') return adminBans(box);
+}
+
+async function adminNotice(box){
+  const { data } = await SB.from('notice_board').select('*').eq('id',1).maybeSingle();
+  box.innerHTML = `
+    <div class="bg-panel border border-border rounded-2xl p-5 space-y-3">
+      <label class="text-[10px] uppercase tracking-widest text-muted">Notice Content</label>
+      <textarea id="nContent" rows="3" class="w-full px-4 py-3 bg-panel2 border border-border rounded-xl text-sm">${esc(data?.content||'')}</textarea>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-2 text-xs">
+          <input type="checkbox" id="nVisible" ${data?.is_visible?'checked':''} class="w-4 h-4">
+          <span>Show notice board</span>
+        </label>
+        <button onclick="saveNotice()" class="ml-auto px-4 py-2 bg-white text-black rounded-lg text-xs font-semibold">Save</button>
+        <button onclick="deleteNotice()" class="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs">Delete</button>
+      </div>
+    </div>`;
+}
+async function saveNotice(){
+  const content=document.getElementById('nContent').value;
+  const is_visible=document.getElementById('nVisible').checked;
+  await SB.from('notice_board').update({ content, is_visible, updated_at:new Date().toISOString() }).eq('id',1);
+  toast('Notice updated','success'); loadNotice();
+}
+async function deleteNotice(){
+  await SB.from('notice_board').update({ content:'', is_visible:false }).eq('id',1);
+  toast('Notice cleared','success'); adminTab('notice'); loadNotice();
+}
+
+async function adminUsers(box){
+  const { data:users } = await SB.from('users').select('*').order('created_at',{ascending:false});
+  const { data:pres } = await SB.from('presence').select('*');
+  const presence = new Map((pres||[]).map(p=>[p.username,p]));
+  let html = '<div class="space-y-2">';
+  html += `<div class="text-[10px] uppercase tracking-widest text-muted mt-1 mb-2">Registered Users (${users?.length||0})</div>`;
+  (users||[]).forEach(u=>{
+    const isOnline = presence.has(u.username) && (Date.now()-new Date(presence.get(u.username).last_seen))/1000<90;
+    html += `
+      <div class="bg-panel border border-border rounded-xl p-3 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-panel2 flex items-center justify-center text-xs font-bold">${initials(u.username)}</div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold">${esc(u.username)} ${u.is_admin?'<span class="text-[9px] text-muted">(admin)</span>':''} ${isOnline?'<span class="text-[9px] text-green-400">● online</span>':''}</p>
+          <p class="text-[10px] text-muted">${u.location||'—'} · joined ${timeAgo(u.created_at)}</p>
+        </div>
+        ${u.is_banned?'<span class="text-[9px] px-2 py-1 bg-red-500/20 text-red-400 rounded">banned</span>':''}
+        <button onclick="adminKick('${u.username}')" class="text-[10px] px-2 py-1 bg-panel2 border border-border rounded hover:border-border2">Kick</button>
+        <button onclick="adminBan('${u.username}')" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Ban</button>
+        <button onclick="adminDeleteAccount('${u.username}')" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Delete</button>
+      </div>`;
+  });
+  const guests = (pres||[]).filter(p=>p.is_guest && (Date.now()-new Date(p.last_seen))/1000<90);
+  html += `<div class="text-[10px] uppercase tracking-widest text-muted mt-4 mb-2">Active Guests (${guests.length})</div>`;
+  guests.forEach(g=>{
+    html += `
+      <div class="bg-panel border border-border rounded-xl p-3 flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-panel2 flex items-center justify-center text-xs font-bold">${initials(g.username)}</div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold">${esc(g.username)} <span class="text-[9px] text-muted">(guest)</span></p>
+          <p class="text-[10px] text-muted">${g.location||'—'} · seen ${timeAgo(g.last_seen)}</p>
+        </div>
+        <button onclick="adminKick('${g.username}')" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Kick</button>
+        <button onclick="adminBan('${g.username}')" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Ban</button>
+      </div>`;
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+async function adminKick(name){
+  await SB.from('presence').update({ kicked:true }).eq('username',name);
+  toast('Kicked '+name,'success'); adminTab('users');
+}
+async function adminBan(name){
+  const reason = prompt('Ban reason:','Violated rules') || 'Banned';
+  await SB.from('bans').upsert({ username:name, reason, banned_by:State.user.username });
+  await SB.from('users').update({ is_banned:true, ban_reason:reason }).eq('username',name);
+  await SB.from('presence').delete().eq('username',name);
+  toast('Banned '+name,'success'); adminTab('users');
+}
+async function adminDeleteAccount(name){
+  if(!confirm('Permanently delete account "'+name+'"?')) return;
+  await SB.from('users').delete().eq('username',name);
+  await SB.from('presence').delete().eq('username',name);
+  toast('Account deleted','success'); adminTab('users');
+}
+
+async function adminPublic(box){
+  const { data } = await SB.from('public_messages').select('*').order('created_at',{ascending:false}).limit(200);
+  let html='<div class="space-y-2">';
+  (data||[]).forEach(m=>{
+    html += `
+      <div class="bg-panel border border-border rounded-xl p-3 flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <p class="text-[11px] font-semibold text-gray-300">${esc(m.sender)} <span class="text-muted font-normal">· ${fmtTime(m.created_at)}</span></p>
+          ${m.msg_type==='image'
+            ? `<img src="${m.image_data}" class="mt-2 max-w-[200px] rounded-lg border border-border">`
+            : `<p class="text-sm text-gray-200 mt-1 break-words">${esc(m.content)}</p>`}
+        </div>
+        <button onclick="deleteMsg('pub',${m.id});setTimeout(()=>adminTab('public'),300)" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Delete</button>
+      </div>`;
+  });
+  html+='</div>';
+  box.innerHTML=html;
+}
+
+async function adminPrivate(box){
+  const { data:chats } = await SB.from('private_chats').select('*').order('last_message_at',{ascending:false});
+  let html='<div class="space-y-2">';
+  (chats||[]).forEach(c=>{
+    html += `
+      <details class="bg-panel border border-border rounded-xl">
+        <summary class="p-3 cursor-pointer flex items-center gap-3">
+          <div class="flex-1">
+            <p class="text-sm font-semibold">${esc(c.user_a)} ↔ ${esc(c.user_b)}</p>
+            <p class="text-[10px] text-muted">Last activity: ${timeAgo(c.last_message_at)}</p>
+          </div>
+          <button onclick="event.preventDefault();event.stopPropagation();adminViewChat('${c.id}')" class="text-[10px] px-2 py-1 bg-panel2 border border-border rounded">Open</button>
+        </summary>
+        <div id="chat_${c.id}" class="p-3 pt-0"></div>
+      </details>`;
+  });
+  html+='</div>';
+  box.innerHTML=html;
+}
+async function adminViewChat(chatId){
+  const box = document.getElementById('chat_'+chatId);
+  if(box.dataset.loaded) return;
+  box.dataset.loaded='1';
+  const { data } = await SB.from('private_messages').select('*').eq('chat_id',chatId).order('created_at',{ascending:true}).limit(300);
+  box.innerHTML = (data||[]).map(m=>`
+    <div class="border-t border-border pt-2 mt-2 flex items-start gap-2">
+      <div class="flex-1 min-w-0">
+        <p class="text-[10px] font-semibold text-gray-300">${esc(m.sender)} <span class="text-muted font-normal">· ${fmtTime(m.created_at)}</span> ${m.is_one_time?'<span class="text-[9px] px-1.5 py-0.5 bg-panel2 rounded border border-border">one-time</span>':''}</p>
+        ${m.msg_type==='image'
+          ? `<img src="${m.image_data}" class="mt-1 max-w-[180px] rounded-lg border border-border cursor-pointer" data-full="${encodeURIComponent(m.image_data)}" onclick="adminOpenImg(this.dataset.full)">`
+          : `<p class="text-xs text-gray-200 mt-0.5 break-words">${esc(m.content)}</p>`}
+      </div>
+      <button onclick="deleteMsg('priv',${m.id});this.parentElement.remove()" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded shrink-0">Delete</button>
+    </div>`).join('') || '<p class="text-xs text-muted">No messages</p>';
+}
+
+async function adminOneTime(box){
+  const { data:pub } = await SB.from('public_messages').select('*').eq('is_one_time',true);
+  const { data:priv } = await SB.from('private_messages').select('*').eq('is_one_time',true);
+  const all = [
+    ...(pub||[]).map(m=>({...m, kind:'pub'})),
+    ...(priv||[]).map(m=>({...m, kind:'priv'}))
+  ];
+  let html = `<div class="text-[10px] uppercase tracking-widest text-muted mb-2">One-time images (admin can view/download all) — ${all.length} total</div><div class="grid grid-cols-2 md:grid-cols-4 gap-2">`;
+  all.forEach(m=>{
+    html += `
+      <div class="bg-panel border border-border rounded-xl overflow-hidden">
+        <img src="${m.image_data}" class="w-full aspect-square object-cover cursor-pointer" onclick="adminOpenImg('${encodeURIComponent(m.image_data)}')">
+        <div class="p-2 flex justify-between items-center">
+          <span class="text-[9px] text-muted truncate">${esc(m.sender)}</span>
+          <button onclick="deleteOneTime(${m.id},'${m.kind}')" class="text-[9px] text-red-400 shrink-0 ml-2">delete</button>
+        </div>
+      </div>`;
+  });
+  if(!all.length) html += '<p class="text-xs text-muted col-span-4">No one-time images</p>';
+  html += '</div>';
+  box.innerHTML = html;
+}
+function adminOpenImg(data){
+  const url = decodeURIComponent(data);
+  document.getElementById('imgModalImg').src = url;
+  document.getElementById('imgModal').classList.remove('hidden');
+  document.getElementById('imgModal').classList.add('flex');
+  imgModalURL = url;
+}
+async function deleteOneTime(id, kind){
+  const t = kind==='pub'?'public_messages':'private_messages';
+  await SB.from(t).delete().eq('id',id);
+  adminTab('onetime');
+}
+
+async function adminBans(box){
+  const { data } = await SB.from('bans').select('*').order('banned_at',{ascending:false});
+  let html='<div class="space-y-2">';
+  (data||[]).forEach(b=>{
+    html += `
+      <div class="bg-panel border border-border rounded-xl p-3 flex items-center gap-3">
+        <div class="flex-1">
+          <p class="text-sm font-semibold">${esc(b.username)}</p>
+          <p class="text-[10px] text-muted">${esc(b.reason||'')} · by ${esc(b.banned_by||'admin')} · ${timeAgo(b.banned_at)}</p>
+        </div>
+        <button onclick="adminUnban('${b.username}')" class="text-[10px] px-2 py-1 bg-panel2 border border-border rounded hover:border-border2">Unban</button>
+      </div>`;
+  });
+  if(!data?.length) html+='<p class="text-xs text-muted">No bans</p>';
+  html+='</div>';
+  box.innerHTML=html;
+}
+async function adminUnban(name){
+  await SB.from('bans').delete().eq('username',name);
+  await SB.from('users').update({ is_banned:false, ban_reason:null }).eq('username',name);
+  toast('Unbanned '+name,'success'); adminTab('bans');
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  ['gName','sName'].forEach(id=>{
+    document.getElementById(id).addEventListener('blur', async (e)=>{
+      const v=e.target.value.trim();
+      if(v.length<3) return;
+      const { available } = await checkNameAvailable(v);
+      if(!available){
+        const box = id==='gName'?'gSuggest':'sSuggest';
+        const list = id==='gName'?'gSuggestList':'sSuggestList';
+        const s = await generateSuggestions(v);
+        document.getElementById(list).innerHTML = s.map(n=>`<button onclick="document.getElementById('${id}').value='${n}';document.getElementById('${box}').classList.add('hidden')" class="px-3 py-1.5 bg-panel border border-border rounded-lg text-xs hover:border-border2">${n}</button>`).join('');
+        document.getElementById(box).classList.remove('hidden');
+      } else {
+        document.getElementById(id==='gName'?'gSuggest':'sSuggest').classList.add('hidden');
+      }
+    });
+  });
+});
+</script>
+
+</body>
+</html>
+
+
+
