@@ -26,7 +26,7 @@ tailwind.config = {
 .hidden{display:none !important}
 
 /* ============================================================
-   THEME SYSTEM — CSS Variables
+   THEME SYSTEM
    ============================================================ */
 body[data-theme="cyber_ocean"]{
   --c-bg:#071417;--c-panel:#0e2226;--c-panel2:#152f34;--c-border:#1f4348;--c-border2:#2a565c;
@@ -119,7 +119,7 @@ body{background:var(--c-bg);color:var(--c-txt);font-family:'Inter',system-ui,san
 
 .msg-anim{animation:ma .25s ease-out}
 @keyframes ma{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.modal-overlay{background:rgba(0,0,0,.88);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.modal-overlay{background:rgba(0,0,0,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .nav-btn{transition:all .15s}
 .nav-btn.active{background:var(--c-panel2);color:var(--c-accent-2);box-shadow:inset 0 -2px 0 var(--c-accent)}
 .nav-btn:hover{background:var(--c-panel2)}
@@ -141,6 +141,82 @@ input,textarea{font-size:16px!important}
 .theme-card{cursor:pointer;transition:all .2s;border:2px solid var(--c-border)}
 .theme-card:hover{border-color:var(--c-border2);transform:translateY(-2px)}
 .theme-card.selected{border-color:var(--c-accent);box-shadow:0 0 20px color-mix(in srgb,var(--c-accent) 40%,transparent)}
+
+/* ============================================================
+   SCREENSHOT DETERRENCE — One-Time Image Protection
+   ============================================================ */
+.protected-image{
+  user-select:none !important;
+  -webkit-user-select:none !important;
+  -moz-user-select:none !important;
+  -webkit-touch-callout:none !important;
+  -webkit-user-drag:none !important;
+  pointer-events:auto !important;
+  touch-action:manipulation;
+}
+.protected-wrap{
+  position:relative;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+}
+.protected-wrap::before{
+  content:'';
+  position:absolute;inset:0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 8px);
+  pointer-events:none;
+  z-index:2;
+}
+.watermark-overlay{
+  position:absolute;
+  bottom:8px;right:10px;
+  color:rgba(255,255,255,0.55);
+  font-size:10px;
+  font-family:monospace;
+  text-shadow:0 1px 3px rgba(0,0,0,0.9);
+  pointer-events:none;
+  z-index:3;
+  letter-spacing:0.5px;
+  max-width:90%;
+  text-align:right;
+  line-height:1.3;
+}
+.watermark-repeat{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:3;
+  overflow:hidden;
+  opacity:0.08;
+}
+.watermark-repeat span{
+  position:absolute;
+  color:#fff;
+  font-size:14px;
+  font-weight:700;
+  transform:rotate(-25deg);
+  white-space:nowrap;
+  font-family:monospace;
+}
+#imgModal.blur-active #imgModalContent{
+  filter:blur(30px);
+  transition:filter .1s;
+}
+#imgModal.blur-active::after{
+  content:'⏸ Viewing paused — return to the app';
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  color:#fff;
+  font-size:14px;
+  background:rgba(0,0,0,.85);
+  padding:14px 22px;
+  border-radius:12px;
+  z-index:10;
+  font-weight:600;
+  text-align:center;
+}
 </style>
 </head>
 <body class="h-screen overflow-hidden" data-theme="cyber_ocean">
@@ -408,21 +484,25 @@ const SUPABASE_ANON_KEY = 'sb_publishable_eVJYSBWVC1rAGq6sdU5DfQ_iQapWq0L';
 </div>
 
 <!-- ==================== IMAGE MODAL ==================== -->
-<div id="imgModal" class="hidden fixed inset-0 z-[150] modal-overlay items-center justify-center p-4" onclick="closeImgModal(event)">
-  <div class="max-w-2xl w-full relative" onclick="event.stopPropagation()">
-    <button id="imgModalX" onclick="closeImgModal()" class="hidden absolute -top-3 -right-3 w-10 h-10 rounded-full bg-panel2 border-2 text-magenta items-center justify-center font-bold z-10" style="border-color:var(--c-accent-3);display:none">✕</button>
-    <img id="imgModalImg" class="w-full rounded-2xl border border-border">
+<div id="imgModal" class="hidden fixed inset-0 z-[150] modal-overlay items-center justify-center p-4">
+  <div id="imgModalContent" class="max-w-2xl w-full relative" onclick="event.stopPropagation()">
+    <button id="imgModalX" onclick="closeImgModal()" class="hidden absolute -top-4 -right-2 sm:-top-3 sm:-right-3 w-11 h-11 rounded-full bg-red-500 text-white items-center justify-center font-bold z-[20] shadow-lg" style="display:none">✕</button>
+    <div id="imgModalImgWrap" class="relative protected-wrap">
+      <img id="imgModalImg" class="w-full rounded-2xl border border-border protected-image" draggable="false">
+      <div id="imgWatermark" class="watermark-overlay hidden"></div>
+      <div id="imgWatermarkRepeat" class="watermark-repeat hidden"></div>
+    </div>
     <div id="imgModalActions" class="flex justify-center gap-2 mt-3">
       <button onclick="downloadImg()" class="px-4 py-2 rounded-xl bg-panel2 border border-border text-xs">⬇ Download</button>
       <button onclick="closeImgModal()" class="px-4 py-2 rounded-xl bg-panel2 border border-border text-xs">✕ Close</button>
     </div>
-    <p id="imgModalHint" class="hidden text-center text-[10px] text-magenta mt-2">⏱ This image will disappear after you close it</p>
+    <p id="imgModalHint" class="hidden text-center text-[10px] text-magenta mt-2">⏱ This image disappears after you close it · Screenshots are blocked</p>
   </div>
 </div>
 
 <script>
 /* ============================================================
-   SL GAY v3.1 — Mobile + Theme Switcher + Nav Fix
+   SL GAY v3.2 — One-Time Image Fixes + Screenshot Deterrent
    ============================================================ */
 const SB = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -434,9 +514,7 @@ function fitViewport(){
   const h = vv ? vv.height : window.innerHeight;
   document.documentElement.style.setProperty('--app-height', h + 'px');
   const mainApp = document.getElementById('mainApp');
-  if(mainApp && !mainApp.classList.contains('hidden')){
-    mainApp.style.height = h + 'px';
-  }
+  if(mainApp && !mainApp.classList.contains('hidden')) mainApp.style.height = h + 'px';
   document.body.style.height = h + 'px';
 }
 if(window.visualViewport){
@@ -461,45 +539,89 @@ document.addEventListener('focusin', (e)=>{
 });
 
 /* ============================================================
+   SCREENSHOT DETERRENCE
+   ============================================================ */
+// Prevent right-click / long-press context menu on the modal
+document.addEventListener('contextmenu', (e)=>{
+  if(document.getElementById('imgModal') && !document.getElementById('imgModal').classList.contains('hidden')){
+    e.preventDefault();
+    toast('Right-click / long-press disabled','error');
+    return false;
+  }
+});
+// Prevent drag on modal image
+document.addEventListener('dragstart', (e)=>{
+  if(e.target.id === 'imgModalImg'){ e.preventDefault(); return false; }
+});
+// Blur / visibility change → close or blur the modal
+function isImgModalOpen(){
+  const m = document.getElementById('imgModal');
+  return m && !m.classList.contains('hidden');
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden && isImgModalOpen()){
+    document.getElementById('imgModal').classList.add('blur-active');
+  } else if(!document.hidden && isImgModalOpen()){
+    document.getElementById('imgModal').classList.remove('blur-active');
+  }
+});
+window.addEventListener('blur', ()=>{
+  if(isImgModalOpen()) document.getElementById('imgModal').classList.add('blur-active');
+});
+window.addEventListener('focus', ()=>{
+  if(isImgModalOpen()) document.getElementById('imgModal').classList.remove('blur-active');
+});
+
+/* ============================================================
+   MODAL HISTORY MANAGEMENT (back button support)
+   ============================================================ */
+let imgModalHistoryActive = false;
+let imgModalOneTime = false;
+let imgModalURL = null;
+
+function pushModalHistory(){
+  try {
+    history.pushState({slgay_modal:true, ts:Date.now()}, '');
+    imgModalHistoryActive = true;
+  } catch(e){}
+}
+function popModalHistory(){
+  if(imgModalHistoryActive){
+    imgModalHistoryActive = false;
+    try { history.back(); } catch(e){}
+  }
+}
+window.addEventListener('popstate', (e)=>{
+  if(imgModalHistoryActive){
+    imgModalHistoryActive = false;
+    // Force close without re-popping history
+    forceCloseImgModal();
+  }
+});
+
+/* ============================================================
    THEMES
    ============================================================ */
 const THEMES = [
-  {id:'cyber_ocean', name:'Cyber Ocean', desc:'Cyan + Magenta',
-   colors:['#071417','#06b6d4','#e879f9','#a3e635']},
-  {id:'twilight_pride', name:'Twilight Pride', desc:'Violet + Pink',
-   colors:['#0f0a1e','#a855f7','#ec4899','#06b6d4']},
-  {id:'sunset_beach', name:'Sunset Beach', desc:'Orange + Rose',
-   colors:['#16080f','#fb923c','#f43f5e','#fbbf24']},
-  {id:'royal_pride', name:'Royal Pride', desc:'Blue + Gold',
-   colors:['#0a0e27','#3b82f6','#a855f7','#fbbf24']},
-  {id:'neon_night', name:'Neon Night', desc:'Neon Pink + Purple',
-   colors:['#0a0a0a','#ff2d95','#bf5af2','#00e5ff']},
-  {id:'emerald_forest', name:'Emerald Forest', desc:'Green + Teal',
-   colors:['#05130d','#10b981','#22d3ee','#a3e635']},
-  {id:'crimson_flame', name:'Crimson Flame', desc:'Red + Orange',
-   colors:['#160606','#ef4444','#f59e0b','#fb923c']},
-  {id:'midnight_rose', name:'Midnight Rose', desc:'Pink + Purple',
-   colors:['#0c0610','#ec4899','#a855f7','#fb7185']},
-  {id:'golden_hour', name:'Golden Hour', desc:'Amber + Orange',
-   colors:['#14100a','#f59e0b','#f97316','#d97706']},
-  {id:'matrix', name:'Matrix', desc:'Green Terminal',
-   colors:['#000000','#22c55e','#16a34a','#86efac']},
-  {id:'arctic_ice', name:'Arctic Ice', desc:'Ice Blue',
-   colors:['#0a1218','#38bdf8','#818cf8','#22d3ee']},
-  {id:'peach_cream', name:'Peach Cream', desc:'Peach + Coral',
-   colors:['#1c1410','#fb7185','#fb923c','#fcd34d']},
+  {id:'cyber_ocean', name:'Cyber Ocean', desc:'Cyan + Magenta', colors:['#071417','#06b6d4','#e879f9','#a3e635']},
+  {id:'twilight_pride', name:'Twilight Pride', desc:'Violet + Pink', colors:['#0f0a1e','#a855f7','#ec4899','#06b6d4']},
+  {id:'sunset_beach', name:'Sunset Beach', desc:'Orange + Rose', colors:['#16080f','#fb923c','#f43f5e','#fbbf24']},
+  {id:'royal_pride', name:'Royal Pride', desc:'Blue + Gold', colors:['#0a0e27','#3b82f6','#a855f7','#fbbf24']},
+  {id:'neon_night', name:'Neon Night', desc:'Neon Pink + Purple', colors:['#0a0a0a','#ff2d95','#bf5af2','#00e5ff']},
+  {id:'emerald_forest', name:'Emerald Forest', desc:'Green + Teal', colors:['#05130d','#10b981','#22d3ee','#a3e635']},
+  {id:'crimson_flame', name:'Crimson Flame', desc:'Red + Orange', colors:['#160606','#ef4444','#f59e0b','#fb923c']},
+  {id:'midnight_rose', name:'Midnight Rose', desc:'Pink + Purple', colors:['#0c0610','#ec4899','#a855f7','#fb7185']},
+  {id:'golden_hour', name:'Golden Hour', desc:'Amber + Orange', colors:['#14100a','#f59e0b','#f97316','#d97706']},
+  {id:'matrix', name:'Matrix', desc:'Green Terminal', colors:['#000000','#22c55e','#16a34a','#86efac']},
+  {id:'arctic_ice', name:'Arctic Ice', desc:'Ice Blue', colors:['#0a1218','#38bdf8','#818cf8','#22d3ee']},
+  {id:'peach_cream', name:'Peach Cream', desc:'Peach + Coral', colors:['#1c1410','#fb7185','#fb923c','#fcd34d']},
 ];
-
 function applyTheme(id){
   if(!THEMES.find(t=>t.id===id)) id = 'cyber_ocean';
   document.body.setAttribute('data-theme', id);
   const t = THEMES.find(t=>t.id===id);
-  if(t){
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if(meta) meta.setAttribute('content', t.colors[0]);
-  }
+  if(t){ const meta = document.querySelector('meta[name="theme-color"]'); if(meta) meta.setAttribute('content', t.colors[0]); }
 }
-
 async function loadTheme(){
   const { data } = await SB.from('site_settings').select('theme').eq('id',1).maybeSingle();
   if(data && data.theme) applyTheme(data.theme);
@@ -733,24 +855,16 @@ function startHeartbeat(){
   beat(); State.heartbeatTimer = setInterval(beat, 20000);
 }
 
+/* ============================================================
+   CLEANUP — only delete by 24h expiry now
+   (viewer-based deletion removed so new users can still see)
+   ============================================================ */
 function startCleanupLoop(){
   const run = async () => {
     const now = new Date().toISOString();
     try {
       await SB.from('public_messages').delete().lt('expires_at', now);
       await SB.from('private_messages').delete().lt('expires_at', now);
-      const { data:pub } = await SB.from('public_messages').select('id,target_viewers,viewed_by').eq('is_one_time',true);
-      (pub||[]).forEach(async m=>{
-        const tv = new Set(m.target_viewers||[]); const vb = new Set(m.viewed_by||[]);
-        let all=true; tv.forEach(u=>{ if(!vb.has(u)) all=false; });
-        if(all && tv.size>0) await SB.from('public_messages').delete().eq('id',m.id);
-      });
-      const { data:priv } = await SB.from('private_messages').select('id,target_viewers,viewed_by').eq('is_one_time',true);
-      (priv||[]).forEach(async m=>{
-        const tv = new Set(m.target_viewers||[]); const vb = new Set(m.viewed_by||[]);
-        let all=true; tv.forEach(u=>{ if(!vb.has(u)) all=false; });
-        if(all && tv.size>0) await SB.from('private_messages').delete().eq('id',m.id);
-      });
     } catch(e){ console.warn(e); }
   };
   run(); State.cleanupTimer = setInterval(run, 60000);
@@ -762,7 +876,6 @@ async function logoutUser(){
   SB.removeAllChannels(); location.reload();
 }
 
-/* ===== FIXED showView() — cleans flex-col when hiding ===== */
 function showView(v){
   document.querySelectorAll('.view').forEach(el=>{
     el.classList.add('hidden');
@@ -806,6 +919,18 @@ async function loadPublicMessages(){
   scrollPublic();
 }
 
+/* ------ Helper: can I see this one-time image? ------ */
+function canViewOneTime(m, isMine){
+  if(!m.is_one_time) return true;
+  if(isMine || State.user.isAdmin) return true;
+  // Expired?
+  if(m.expires_at && new Date(m.expires_at) < new Date()) return false;
+  // Already viewed?
+  if((m.viewed_by||[]).includes(State.user.username)) return false;
+  // Anyone who hasn't viewed can view — no target_viewers requirement
+  return true;
+}
+
 function renderPublicMsg(m){
   const div = document.createElement('div');
   div.className='msg-anim'; div.dataset.id=m.id;
@@ -817,13 +942,11 @@ function renderPublicMsg(m){
 
   if(m.msg_type==='image'){
     const isOneTime=m.is_one_time;
-    const alreadyViewed=(m.viewed_by||[]).includes(State.user.username);
-    const inTargets=(m.target_viewers||[]).includes(State.user.username);
-    const canSeeOneTime = isOneTime && !alreadyViewed && (isMine || State.user.isAdmin || inTargets);
+    const canSee = canViewOneTime(m, isMine);
     let inner='';
     if(!isOneTime){
-      inner=`<img src="${m.image_data}" class="rounded-xl max-w-full border border-border cursor-pointer" onclick="openImgModal('${m.id}','pub',false)">`;
-    } else if(canSeeOneTime){
+      inner=`<img src="${m.image_data}" class="rounded-xl max-w-full border border-border cursor-pointer" onclick="openImgModal('${m.id}','pub')">`;
+    } else if(canSee){
       inner=`<button onclick="openOneTime('${m.id}','pub')" class="one-time-btn px-4 py-2.5 rounded-xl text-xs font-semibold">⏱ one time 📸</button>`;
     } else {
       inner=`<div class="px-4 py-3 rounded-xl bg-panel2 border border-border text-xs text-muted italic">🔒 Viewed or expired</div>`;
@@ -865,9 +988,7 @@ function renderPublicMsg(m){
   return div;
 }
 
-function scrollPublic(){
-  const el=document.getElementById('publicMessages'); el.scrollTop=el.scrollHeight;
-}
+function scrollPublic(){ const el=document.getElementById('publicMessages'); el.scrollTop=el.scrollHeight; }
 
 async function sendPublic(){
   const input=document.getElementById('pubInput');
@@ -895,7 +1016,6 @@ async function pickImage(evt, kind){
   updatePreviewUI(kind);
   evt.target.value='';
 }
-
 function updatePreviewUI(kind){
   const prev=document.getElementById(kind==='pub'?'pubPreview':'privPreview');
   const img=document.getElementById(kind==='pub'?'pubPreviewImg':'privPreviewImg');
@@ -914,28 +1034,21 @@ function updatePreviewUI(kind){
     eyeOpen.classList.remove('hidden'); eyeClosed.classList.add('hidden'); eyeBtn.classList.remove('active');
   }
 }
-
 function toggleOneTime(kind){
   State.pendingOneTime[kind]=!State.pendingOneTime[kind];
   updatePreviewUI(kind);
   toast(State.pendingOneTime[kind]?'One-time view ⏱':'Normal view 👁️','info');
 }
-
 function cancelImage(kind){
   State.pendingImage[kind]=null; State.pendingOneTime[kind]=false;
   updatePreviewUI(kind);
 }
-
 async function submitImage(kind){
   const data=State.pendingImage[kind];
   const isOneTime=State.pendingOneTime[kind];
   if(!data) return;
-  let targets=[];
-  if(isOneTime){
-    const cutoff=new Date(Date.now()-90000).toISOString();
-    const { data:ps } = await SB.from('presence').select('username').gte('last_seen',cutoff);
-    targets=(ps||[]).map(p=>p.username);
-  }
+  // No more target_viewers restriction — anyone who hasn't seen it can view
+  const targets = [];
   const expires_at = isOneTime ? new Date(Date.now()+24*3600*1000).toISOString() : null;
   let error=null;
   if(kind==='pub'){
@@ -956,52 +1069,123 @@ async function submitImage(kind){
   toast(isOneTime?'⏱ One-time sent':'📸 Image sent','success');
 }
 
-let imgModalURL=null;
+/* ============================================================
+   IMAGE MODAL — normal image
+   ============================================================ */
 async function openImgModal(id, kind){
   const table = kind==='pub'?'public_messages':'private_messages';
   const { data:m } = await SB.from(table).select('*').eq('id',id).maybeSingle();
   if(!m) return;
   imgModalURL=m.image_data;
+  imgModalOneTime = false;
   document.getElementById('imgModalImg').src=m.image_data;
   document.getElementById('imgModalX').style.display='none';
   document.getElementById('imgModalActions').style.display='flex';
   document.getElementById('imgModalHint').classList.add('hidden');
+  document.getElementById('imgWatermark').classList.add('hidden');
+  document.getElementById('imgWatermarkRepeat').classList.add('hidden');
   document.getElementById('imgModal').classList.remove('hidden');
   document.getElementById('imgModal').classList.add('flex');
+  pushModalHistory();
 }
 
+/* ============================================================
+   IMAGE MODAL — one-time image
+   ============================================================ */
 async function openOneTime(id, kind){
   const table = kind==='pub'?'public_messages':'private_messages';
   const { data:m } = await SB.from(table).select('*').eq('id',id).maybeSingle();
   if(!m){ toast('Image expired','error'); return; }
   const isMine = m.sender===State.user.username;
+
+  // Validation
+  if(m.expires_at && new Date(m.expires_at) < new Date()){ toast('Image expired','error'); return; }
   const alreadyViewed=(m.viewed_by||[]).includes(State.user.username);
-  if(alreadyViewed && !isMine && !State.user.isAdmin){ toast('Already viewed','error'); return; }
+  if(alreadyViewed && !isMine && !State.user.isAdmin){ toast('You already viewed this image','error'); return; }
+
+  // Build UI
   imgModalURL=m.image_data;
+  imgModalOneTime = true;
   document.getElementById('imgModalImg').src=m.image_data;
   document.getElementById('imgModalX').style.display='flex';
   document.getElementById('imgModalActions').style.display='none';
   document.getElementById('imgModalHint').classList.remove('hidden');
+
+  // Watermark: username + timestamp (deter screenshot sharing)
+  const wm = State.user.username + ' · ' + new Date().toLocaleString();
+  document.getElementById('imgWatermark').textContent = wm;
+  document.getElementById('imgWatermark').classList.remove('hidden');
+
+  // Repeating diagonal watermark
+  const rep = document.getElementById('imgWatermarkRepeat');
+  rep.innerHTML='';
+  for(let i=0;i<12;i++){
+    const s = document.createElement('span');
+    s.textContent = State.user.username;
+    s.style.top = (i*8) + '%';
+    s.style.left = ((i%3)*35) + '%';
+    rep.appendChild(s);
+  }
+  rep.classList.remove('hidden');
+
   document.getElementById('imgModal').classList.remove('hidden');
   document.getElementById('imgModal').classList.add('flex');
+
+  // History for back button
+  pushModalHistory();
+
+  // Mark as viewed (unless mine/admin)
   if(!isMine && !State.user.isAdmin){
     const vb=new Set(m.viewed_by||[]); vb.add(State.user.username);
     await SB.from(table).update({ viewed_by:Array.from(vb) }).eq('id',id);
   }
 }
 
-function closeImgModal(evt){
-  if(evt && evt.target.id!=='imgModal' && evt.target.id!=='imgModalX') return;
-  document.getElementById('imgModal').classList.add('hidden');
-  document.getElementById('imgModal').classList.remove('flex');
+/* ============================================================
+   MODAL CLOSE — works for X button, overlay, back button
+   ============================================================ */
+function forceCloseImgModal(){
+  const modal = document.getElementById('imgModal');
+  if(modal.classList.contains('hidden')) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+  modal.classList.remove('blur-active');
   imgModalURL=null;
+  imgModalOneTime = false;
   document.getElementById('imgModalHint').classList.add('hidden');
+  document.getElementById('imgWatermark').classList.add('hidden');
+  document.getElementById('imgWatermarkRepeat').classList.add('hidden');
   if(State.view==='public') loadPublicMessages();
   else if(State.view==='private-chat') loadPrivateMessages();
 }
 
+function closeImgModal(){
+  const modal = document.getElementById('imgModal');
+  if(modal.classList.contains('hidden')) return;
+  // If history was pushed, go back (popstate will call forceCloseImgModal)
+  if(imgModalHistoryActive){
+    try { history.back(); return; } catch(e){ /* fall through */ }
+  }
+  forceCloseImgModal();
+}
+
+// Overlay click (only on the backdrop itself)
+document.getElementById('imgModal').addEventListener('click', function(e){
+  if(e.target.id === 'imgModal'){
+    closeImgModal();
+  }
+});
+
+// ESC key closes
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && !document.getElementById('imgModal').classList.contains('hidden')){
+    closeImgModal();
+  }
+});
+
 function downloadImg(){
   if(!imgModalURL) return;
+  if(imgModalOneTime){ toast('One-time images cannot be downloaded','error'); return; }
   const a=document.createElement('a'); a.href=imgModalURL; a.download='slgay_'+Date.now()+'.jpg'; a.click();
 }
 
@@ -1032,7 +1216,6 @@ async function openPrivateWith(otherUser){
   showView('private-chat');
   subscribePrivateChat(chat.id);
 }
-
 async function updatePrivateStatus(){
   if(!State.currentChat) return;
   const other=State.currentChat.otherUser;
@@ -1044,7 +1227,6 @@ async function updatePrivateStatus(){
   if(diff<90) document.getElementById('pcStatus').innerHTML='<span class="text-lime">● Online</span>';
   else document.getElementById('pcStatus').textContent='Last seen '+timeAgo(last);
 }
-
 async function loadPrivateMessages(){
   if(!State.currentChat) return;
   const { data } = await SB.from('private_messages').select('*').eq('chat_id',State.currentChat.id).order('created_at',{ascending:true}).limit(300);
@@ -1053,7 +1235,6 @@ async function loadPrivateMessages(){
   (data||[]).forEach(m=> box.appendChild(renderPrivateMsg(m)));
   const sc=document.getElementById('privateMessages'); sc.scrollTop=sc.scrollHeight;
 }
-
 function renderPrivateMsg(m){
   const div=document.createElement('div');
   div.className='msg-anim'; div.dataset.id=m.id;
@@ -1061,13 +1242,11 @@ function renderPrivateMsg(m){
   const canDelete=isMine || State.user.isAdmin;
   if(m.msg_type==='image'){
     const isOneTime=m.is_one_time;
-    const alreadyViewed=(m.viewed_by||[]).includes(State.user.username);
-    const inTargets=(m.target_viewers||[]).includes(State.user.username);
-    const canSeeOneTime=isOneTime && !alreadyViewed && (isMine||State.user.isAdmin||inTargets);
+    const canSee = canViewOneTime(m, isMine);
     let inner='';
     if(!isOneTime){
-      inner=`<img src="${m.image_data}" class="rounded-xl border border-border cursor-pointer max-w-full" onclick="openImgModal('${m.id}','priv',false)">`;
-    } else if(canSeeOneTime){
+      inner=`<img src="${m.image_data}" class="rounded-xl border border-border cursor-pointer max-w-full" onclick="openImgModal('${m.id}','priv')">`;
+    } else if(canSee){
       inner=`<button onclick="openOneTime('${m.id}','priv')" class="one-time-btn px-4 py-2.5 rounded-xl text-xs font-semibold">⏱ one time 📸</button>`;
     } else {
       inner=`<div class="px-4 py-3 rounded-xl bg-panel2 border border-border text-xs text-muted italic">🔒 Viewed or expired</div>`;
@@ -1096,7 +1275,6 @@ function renderPrivateMsg(m){
     </div>`;
   return div;
 }
-
 async function sendPrivate(){
   if(!State.currentChat) return;
   const input=document.getElementById('privInput');
@@ -1109,7 +1287,6 @@ async function sendPrivate(){
   });
   if(error) toast('Failed: '+error.message,'error');
 }
-
 async function loadPrivateChats(){
   const me=State.user.username;
   const { data:chats } = await SB.from('private_chats').select('*').or(`user_a.eq.${me},user_b.eq.${me}`).order('last_message_at',{ascending:false});
@@ -1188,21 +1365,11 @@ async function loadFindFriend(){
       </div>`;
   }
   let html='';
-  if(!myCity){
-    html+=`<div class="bg-panel2 border border-border rounded-xl p-3 mb-4 text-[11px] text-muted">💡 Tip: Set your city in Account to see friends near you first.</div>`;
-  }
-  if(myCity && same.length){
-    html+=`<h3 class="text-[10px] uppercase tracking-widest text-cyan2 mb-2">📍 In ${esc(myCity)} (${same.length})</h3><div class="space-y-2 mb-5">${same.map(card).join('')}</div>`;
-  }
-  if(myCity && nearbyG.length){
-    html+=`<h3 class="text-[10px] uppercase tracking-widest text-magenta mb-2">🌆 Nearby (${nearbyG.length})</h3><div class="space-y-2 mb-5">${nearbyG.map(card).join('')}</div>`;
-  }
-  if(others.length){
-    html+=`<h3 class="text-[10px] uppercase tracking-widest text-lime mb-2">🌍 Other Cities (${others.length})</h3><div class="space-y-2 mb-5">${others.map(card).join('')}</div>`;
-  }
-  if(noCity.length){
-    html+=`<h3 class="text-[10px] uppercase tracking-widest text-muted mb-2">❔ No City Set (${noCity.length})</h3><div class="space-y-2 mb-5">${noCity.map(card).join('')}</div>`;
-  }
+  if(!myCity){ html+=`<div class="bg-panel2 border border-border rounded-xl p-3 mb-4 text-[11px] text-muted">💡 Tip: Set your city in Account to see friends near you first.</div>`; }
+  if(myCity && same.length){ html+=`<h3 class="text-[10px] uppercase tracking-widest text-cyan2 mb-2">📍 In ${esc(myCity)} (${same.length})</h3><div class="space-y-2 mb-5">${same.map(card).join('')}</div>`; }
+  if(myCity && nearbyG.length){ html+=`<h3 class="text-[10px] uppercase tracking-widest text-magenta mb-2">🌆 Nearby (${nearbyG.length})</h3><div class="space-y-2 mb-5">${nearbyG.map(card).join('')}</div>`; }
+  if(others.length){ html+=`<h3 class="text-[10px] uppercase tracking-widest text-lime mb-2">🌍 Other Cities (${others.length})</h3><div class="space-y-2 mb-5">${others.map(card).join('')}</div>`; }
+  if(noCity.length){ html+=`<h3 class="text-[10px] uppercase tracking-widest text-muted mb-2">❔ No City Set (${noCity.length})</h3><div class="space-y-2 mb-5">${noCity.map(card).join('')}</div>`; }
   if(!combined.length){ html+=`<div class="text-center py-12"><p class="text-sm text-muted">No users found</p></div>`; }
   box.innerHTML=html;
 }
@@ -1234,7 +1401,6 @@ function subscribeRealtime(){
     if(State.view==='find') loadFindFriend();
   }).subscribe();
 }
-
 function subscribePrivateChat(chatId){
   if(State.privChannel) SB.removeChannel(State.privChannel);
   State.privChannel = SB.channel('priv-'+chatId)
@@ -1274,7 +1440,6 @@ async function renderAdmin(){
   if(adminCurrentTab==='onetime') return adminOneTime(box);
   if(adminCurrentTab==='bans') return adminBans(box);
 }
-
 async function adminTheme(box){
   const { data } = await SB.from('site_settings').select('theme').eq('id',1).maybeSingle();
   const current = data?.theme || 'cyber_ocean';
@@ -1304,7 +1469,6 @@ async function adminTheme(box){
     </div>
   `;
 }
-
 async function pickTheme(id){
   const { error } = await SB.from('site_settings').update({ theme:id, updated_at:new Date().toISOString() }).eq('id',1);
   if(error){ toast('Failed: '+error.message,'error'); return; }
@@ -1312,7 +1476,6 @@ async function pickTheme(id){
   toast('Theme changed to '+THEMES.find(t=>t.id===id).name,'success');
   adminTab('theme');
 }
-
 async function adminNotice(box){
   const { data } = await SB.from('notice_board').select('*').eq('id',1).maybeSingle();
   box.innerHTML = `
@@ -1339,7 +1502,6 @@ async function deleteNotice(){
   await SB.from('notice_board').update({ content:'', is_visible:false }).eq('id',1);
   toast('Cleared','success'); adminTab('notice'); loadNotice();
 }
-
 async function adminUsers(box){
   const { data:users } = await SB.from('users').select('*').order('created_at',{ascending:false});
   const { data:pres } = await SB.from('presence').select('*');
@@ -1374,8 +1536,7 @@ async function adminUsers(box){
         <button onclick="adminBan('${g.username}')" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded">Ban</button>
       </div>`;
   });
-  html+='</div>';
-  box.innerHTML=html;
+  html+='</div>'; box.innerHTML=html;
 }
 async function adminKick(name){ await SB.from('presence').update({kicked:true}).eq('username',name); toast('Kicked '+name,'success'); adminTab('users'); }
 async function adminBan(name){
@@ -1391,7 +1552,6 @@ async function adminDeleteAccount(name){
   await SB.from('presence').delete().eq('username',name);
   toast('Deleted','success'); adminTab('users');
 }
-
 async function adminPublic(box){
   const { data } = await SB.from('public_messages').select('*').order('created_at',{ascending:false}).limit(200);
   let html='<div class="space-y-2">';
@@ -1399,7 +1559,7 @@ async function adminPublic(box){
     html+=`
       <div class="bg-panel border border-border rounded-xl p-3 flex items-start gap-3">
         <div class="flex-1 min-w-0">
-          <p class="text-[11px] font-semibold">${esc(m.sender)} <span class="text-muted font-normal">· ${fmtTime(m.created_at)}</span></p>
+          <p class="text-[11px] font-semibold">${esc(m.sender)} <span class="text-muted font-normal">· ${fmtTime(m.created_at)}</span> ${m.is_one_time?'<span class="text-[9px] px-1.5 py-0.5 rounded border" style="background:color-mix(in srgb,var(--c-accent-3) 12%,transparent);border-color:var(--c-accent-3);color:var(--c-accent-3)">1-time</span>':''}</p>
           ${m.msg_type==='image'
             ? `<img src="${m.image_data}" class="mt-2 max-w-[200px] rounded-lg border border-border">`
             : `<p class="text-sm mt-1 break-words">${esc(m.content)}</p>`}
@@ -1409,7 +1569,6 @@ async function adminPublic(box){
   });
   html+='</div>'; box.innerHTML=html;
 }
-
 async function adminPrivate(box){
   const { data:chats } = await SB.from('private_chats').select('*').order('last_message_at',{ascending:false});
   let html='<div class="space-y-2">';
@@ -1444,7 +1603,6 @@ async function adminViewChat(chatId){
       <button onclick="deleteMsg('priv',${m.id});this.parentElement.remove()" class="text-[10px] px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded shrink-0">Del</button>
     </div>`).join('') || '<p class="text-xs text-muted">No messages</p>';
 }
-
 async function adminOneTime(box){
   const { data:pub } = await SB.from('public_messages').select('*').eq('is_one_time',true);
   const { data:priv } = await SB.from('private_messages').select('*').eq('is_one_time',true);
@@ -1466,18 +1624,21 @@ async function adminOneTime(box){
 function adminOpenImg(data){
   const url=decodeURIComponent(data);
   document.getElementById('imgModalImg').src=url;
-  document.getElementById('imgModalX').style.display='none';
+  document.getElementById('imgModalX').style.display='flex';
   document.getElementById('imgModalActions').style.display='flex';
   document.getElementById('imgModalHint').classList.add('hidden');
+  document.getElementById('imgWatermark').classList.add('hidden');
+  document.getElementById('imgWatermarkRepeat').classList.add('hidden');
   document.getElementById('imgModal').classList.remove('hidden');
   document.getElementById('imgModal').classList.add('flex');
   imgModalURL=url;
+  imgModalOneTime=false;
+  pushModalHistory();
 }
 async function deleteOneTime(id,kind){
   const t=kind==='pub'?'public_messages':'private_messages';
   await SB.from(t).delete().eq('id',id); adminTab('onetime');
 }
-
 async function adminBans(box){
   const { data } = await SB.from('bans').select('*').order('banned_at',{ascending:false});
   let html='<div class="space-y-2">';
